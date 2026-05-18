@@ -1,0 +1,38 @@
+﻿Dataset de gustos sobre películas;;;;;;;;;;;;;
+sexo;edad;país;nivelSatisfaccion;;;MAPER;;;;;;;
+F;65;Brasil;me gusta;;me gusta;1;;max edad;65;;;;
+M;26;España;no me gusta;;neutral;0;;min edad;9;;;;
+F;21;Chile;neutral;;no me gusta;-1;;;;;;;
+M;12;Ecuador;no me gusta;;;;;;;;;;
+F;32;España;me gusta;;;;;;;;;;
+M;9;Ecuador;no me gusta;;;;;;;;;;
+Actividades en clase;;;;;;;;;;;;;
+1. Realizar tabla de diseño de transformaciones;;;;;;;;;;;;;
+2. Ejecutar transformaciones categóricas;;;;;;;;;;;;;
+3. Ejecutar transformaciones numéricas;;;;;;;;;;;;;
+4. Calcular la media y la desviación estandar de la variable edad una vez que ha sido estandarizada;;;;;;;;;;;;;
+SEXO_M;SEXO_F;EDAD;PAIS_BRASIL;PAIS_ESPAÑA;PAIS_CHILE;PAIS_ECUADOR;nivelSatisfaccion_me gusta;nivelSatisfaccion_neutral;nivelSatisfaccion_no me gusta;;VARIABLE;TIPO;TÉCNICA
+0;1;65;1;0;0;0;1;0;0;;sexo;categórica nominal;sistema binario o coding
+1;0;26;0;1;0;0;0;0;1;;edad;numerica discreta;normalización
+0;1;21;0;0;1;0;0;1;0;;pais;categórica nominal;sistema binario o coding
+1;0;12;0;0;0;1;0;0;1;;nivelsatisfacción;categórica ordinal;ordinal - normalizacion
+0;1;32;0;1;0;0;1;0;0;;;;
+1;0;9;0;0;0;1;0;0;1;;;;
+NORMALIZACIÓN;;;;;;;;;;;;;
+SEXO_M;SEXO_F;EDAD;PAIS_BRASIL;PAIS_ESPAÑA;PAIS_CHILE;PAIS_ECUADOR;NIVEL SATISFACCIÓN;;;;;;
+0;1;1;1;0;0;0;1;;;;;;
+1;0;0,303571429;0;1;0;0;-1;;;;;;
+0;1;0,214285714;0;0;1;0;0;;;;;;
+1;0;0,053571429;0;0;0;1;-1;;;;;;
+0;1;0,410714286;0;1;0;0;1;; ;;;;
+1;0;0;0;0;0;1;-1;;;;;;
+ESTANDARIZACIÓN;;;;;;;;;;;;;
+;EDAD;;;;;;;;;;;;
+;2,027027027;;;;;;;;;;;;
+;-0,081081081;;;;;;;;;;;;
+;-0,351351351;;mean edad;27,5;;;;;;;;;
+;-0,837837838;;desv est edad;18,5;;;;;;;;;
+;0,243243243;;;;;;;;;;;;
+;-1;;;;;;;;;;;;
+media;0;;;;;;;;;;;;
+std;1;;;;;;;;;;;;
