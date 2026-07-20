@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Detección asistida de elementos de navegación en el segundo piso del edificio Cornelio Merchán."
+    />
+    <title>Navegación asistida — Cornelio Merchán</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"
+    ></script>
+    <script defer src="./app.js"></script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#controles">Ir a los controles</a>
+
+    <main class="app-shell">
+      <header class="app-header">
+        <p class="eyebrow">Segundo piso · Edificio Cornelio Merchán</p>
+        <h1>Navegación asistida</h1>
+        <p id="instructions" class="instructions">
+          Sostén el teléfono con la cámara trasera apuntando al frente. El sistema puede
+          reconocer letreros, puertas, escaleras, obstáculos y pasillos.
+        </p>
+      </header>
+
+      <section class="status-panel" aria-labelledby="status-title">
+        <h2 id="status-title" class="visually-hidden">Estado de la navegación</h2>
+        <p class="status-label">Estado</p>
+        <p id="status" class="status-text" role="status" aria-live="polite" aria-atomic="true">
+          Navegación detenida
+        </p>
+        <p id="detection" class="detection-text">No se han detectado elementos.</p>
+        <p id="error" class="error-text" role="alert" hidden></p>
+      </section>
+
+      <section id="controles" class="controls" aria-label="Controles de navegación">
+        <button
+          id="start-button"
+          class="action-button action-button--start"
+          type="button"
+          aria-describedby="instructions"
+        >
+          Iniciar navegación
+        </button>
+
+        <button
+          id="stop-button"
+          class="action-button action-button--stop"
+          type="button"
+          disabled
+        >
+          Detener navegación
+        </button>
+
+        <button
+          id="repeat-button"
+          class="action-button action-button--repeat"
+          type="button"
+          disabled
+        >
+          Repetir último aviso
+        </button>
+      </section>
+
+      <details class="camera-panel">
+        <summary>Mostrar vista de la cámara</summary>
+        <video
+          id="camera"
+          aria-label="Vista previa de la cámara trasera"
+          autoplay
+          muted
+          playsinline
+        ></video>
+      </details>
+
+      <p class="privacy-note">
+        El video se procesa en este dispositivo y no se envía a un servidor. El sistema
+        describe elementos visibles, pero no calcula su dirección ni distancia.
+      </p>
+    </main>
+
+    <noscript>
+      <p class="noscript-message">Esta aplicación necesita JavaScript para funcionar.</p>
+    </noscript>
+  </body>
+</html>
