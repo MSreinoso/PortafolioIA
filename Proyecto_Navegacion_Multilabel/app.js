@@ -52,14 +52,6 @@ const MODEL_REGISTRY = Object.freeze({
     layout: "NHWC",
     description: "Ejecuta el archivo ONNX mediante WebAssembly en este dispositivo.",
   }),
-  "tfjs-v1": Object.freeze({
-    id: "tfjs-v1",
-    name: "TensorFlow.js — modelo actual",
-    runtime: "tfjs",
-    url: "./model/model.json",
-    layout: "NHWC",
-    description: "Usa el modelo Keras convertido a model.json como opción de respaldo.",
-  }),
 });
 
 const CONFIG = Object.freeze({
@@ -78,6 +70,16 @@ const elements = {
   repeatButton: document.querySelector("#repeat-button"),
   modelSelect: document.querySelector("#model-select"),
   modelDescription: document.querySelector("#model-description"),
+  imageUpload: document.querySelector("#image-upload"),
+  analyzeUploadButton: document.querySelector("#analyze-upload-button"),
+  testImageSelect: document.querySelector("#test-image-select"),
+  analyzeTestButton: document.querySelector("#analyze-test-button"),
+  imagePreviewPanel: document.querySelector("#image-preview-panel"),
+  imagePreview: document.querySelector("#image-preview"),
+  imageCaption: document.querySelector("#image-caption"),
+  imageResultsPanel: document.querySelector("#image-results-panel"),
+  imageScores: document.querySelector("#image-scores"),
+  expectedLabels: document.querySelector("#expected-labels"),
   status: document.querySelector("#status"),
   detection: document.querySelector("#detection"),
   error: document.querySelector("#error"),
@@ -99,18 +101,28 @@ let activeLabels = Array(LABELS.length).fill(false);
 let lastAnnouncedSignature = "";
 let lastAutomaticSpeechAt = 0;
 let lastSpokenMessage = "";
+let isAnalyzingImage = false;
+let uploadedImageUrl = "";
+let uploadedImageName = "";
+let testImages = [];
+let selectedTestImage = null;
 
 elements.startButton.addEventListener("click", startNavigation);
 elements.stopButton.addEventListener("click", () => stopNavigation(true));
 elements.repeatButton.addEventListener("click", repeatLastAnnouncement);
 elements.modelSelect.addEventListener("change", handleModelSelection);
-window.addEventListener("pagehide", () => stopNavigation(false));
+elements.imageUpload.addEventListener("change", handleImageUpload);
+elements.testImageSelect.addEventListener("change", handleTestImageSelection);
+elements.analyzeUploadButton.addEventListener("click", () => analyzeSelectedImage("upload"));
+elements.analyzeTestButton.addEventListener("click", () => analyzeSelectedImage("test"));
+window.addEventListener("pagehide", cleanupPage);
 
 restoreModelSelection();
 updateModelDescription();
+void loadTestImageManifest();
 
 async function startNavigation() {
-  if (isRunning || isStarting) return;
+  if (isRunning || isStarting || isAnalyzingImage) return;
 
   const thisSession = ++sessionId;
   isStarting = true;
@@ -123,7 +135,8 @@ async function startNavigation() {
   speak("Iniciando navegación asistida.", { remember: false });
 
   try {
-    ensureBrowserSupport();
+    ensureInferenceSupport();
+    ensureCameraSupport();
     mediaStream = await openRearCamera();
     if (thisSession !== sessionId) return;
 
@@ -155,13 +168,7 @@ async function startNavigation() {
   }
 }
 
-function ensureBrowserSupport() {
-  if (!window.isSecureContext) {
-    throw new Error("INSECURE_CONTEXT");
-  }
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("CAMERA_UNSUPPORTED");
-  }
+function ensureInferenceSupport() {
   if (!window.tf) {
     throw new Error("TFJS_UNAVAILABLE");
   }
@@ -171,6 +178,227 @@ function ensureBrowserSupport() {
   if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
     throw new Error("SPEECH_UNSUPPORTED");
   }
+}
+
+function ensureCameraSupport() {
+  if (!window.isSecureContext) {
+    throw new Error("INSECURE_CONTEXT");
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("CAMERA_UNSUPPORTED");
+  }
+}
+
+async function loadTestImageManifest() {
+  try {
+    const response = await fetch("./test-images/manifest.json", { cache: "no-cache" });
+    if (!response.ok) throw new Error(`TEST_MANIFEST_HTTP_${response.status}`);
+
+    const manifest = await response.json();
+    if (!Array.isArray(manifest.images) || manifest.images.length === 0) {
+      throw new Error("INVALID_TEST_MANIFEST");
+    }
+
+    testImages = manifest.images;
+    elements.testImageSelect.replaceChildren(
+      new Option("Selecciona una imagen de prueba", ""),
+      ...testImages.map((image, index) => {
+        const labelNames = image.labels.map(getLabelName).join(", ");
+        return new Option(`${index + 1}. ${image.filename} — ${labelNames}`, image.id);
+      }),
+    );
+    elements.testImageSelect.disabled = false;
+    refreshImageControlState();
+  } catch (error) {
+    console.error(error);
+    elements.testImageSelect.replaceChildren(
+      new Option("No se pudo cargar la galería de prueba", ""),
+    );
+    showError(
+      "No se pudo cargar la galería de prueba. Aún puedes subir una foto o usar la cámara.",
+    );
+  }
+}
+
+function handleImageUpload() {
+  if (isRunning || isStarting || isAnalyzingImage) return;
+
+  const file = elements.imageUpload.files?.[0];
+  if (!file) {
+    clearUploadedImage();
+    refreshImageControlState();
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    clearUploadedImage();
+    showError("Selecciona un archivo de imagen JPG, PNG o WebP.");
+    refreshImageControlState();
+    return;
+  }
+
+  if (file.size > 15 * 1024 * 1024) {
+    clearUploadedImage();
+    showError("La foto supera 15 MB. Elige una imagen más pequeña.");
+    refreshImageControlState();
+    return;
+  }
+
+  clearError();
+  if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
+  uploadedImageUrl = URL.createObjectURL(file);
+  uploadedImageName = file.name;
+  elements.imageResultsPanel.hidden = true;
+  void showImagePreview(uploadedImageUrl, `Foto subida: ${file.name}`).catch(handlePreviewError);
+  refreshImageControlState();
+}
+
+function handleTestImageSelection() {
+  if (isRunning || isStarting || isAnalyzingImage) return;
+
+  selectedTestImage =
+    testImages.find((image) => image.id === elements.testImageSelect.value) ?? null;
+  elements.imageResultsPanel.hidden = true;
+
+  if (selectedTestImage) {
+    const expected = formatSpanishList(selectedTestImage.labels.map(getLabelName));
+    void showImagePreview(
+      selectedTestImage.path,
+      `Imagen de prueba: ${selectedTestImage.filename}. Etiquetas esperadas: ${expected}.`,
+    ).catch(handlePreviewError);
+  }
+
+  refreshImageControlState();
+}
+
+async function analyzeSelectedImage(mode) {
+  if (isRunning || isStarting || isAnalyzingImage) return;
+
+  const context =
+    mode === "upload"
+      ? uploadedImageUrl
+        ? { src: uploadedImageUrl, filename: uploadedImageName, labels: null }
+        : null
+      : selectedTestImage;
+  if (!context) return;
+
+  isAnalyzingImage = true;
+  clearError();
+  setControls("analyzing");
+  setStatus("Preparando la imagen…");
+  elements.imageResultsPanel.hidden = true;
+  speak("Analizando imagen.", { remember: false });
+
+  try {
+    ensureInferenceSupport();
+    const expected = context.labels
+      ? formatSpanishList(context.labels.map(getLabelName))
+      : "sin etiquetas esperadas";
+    await showImagePreview(
+      context.src ?? context.path,
+      mode === "test"
+        ? `Imagen de prueba: ${context.filename}. Etiquetas esperadas: ${expected}.`
+        : `Foto subida: ${context.filename}`,
+    );
+
+    const selectedConfig = getSelectedModelConfig();
+    setStatus(`Cargando ${selectedConfig.name}…`);
+    activeModel = await loadNavigationModel(selectedConfig);
+    validateModel(activeModel);
+    await warmUpModel(activeModel);
+
+    setStatus(`Analizando imagen con ${selectedConfig.name}…`);
+    const scores =
+      activeModel.config.runtime === "onnx"
+        ? await predictWithOnnx(activeModel, elements.imagePreview)
+        : await predictWithTfjs(activeModel, elements.imagePreview);
+    renderImageResults(scores, context.labels);
+    setStatus(`Imagen analizada con ${selectedConfig.name}.`);
+  } catch (error) {
+    console.error(error);
+    const message = friendlyErrorMessage(error);
+    showError(message);
+    setStatus("No se pudo analizar la imagen.");
+    speak(message, { remember: false });
+  } finally {
+    isAnalyzingImage = false;
+    setControls("stopped");
+  }
+}
+
+async function showImagePreview(src, caption) {
+  if (elements.imagePreview.src !== new URL(src, document.baseURI).href) {
+    elements.imagePreview.src = src;
+  }
+  elements.imageCaption.textContent = caption;
+  elements.imagePreviewPanel.hidden = false;
+
+  if (!elements.imagePreview.complete || elements.imagePreview.naturalWidth === 0) {
+    await new Promise((resolve, reject) => {
+      elements.imagePreview.addEventListener("load", resolve, { once: true });
+      elements.imagePreview.addEventListener("error", reject, { once: true });
+    });
+  }
+}
+
+function handlePreviewError(error) {
+  console.error(error);
+  showError("No se pudo abrir la imagen seleccionada.");
+}
+
+function renderImageResults(scores, expectedLabelIds) {
+  if (scores.length !== LABELS.length || scores.some((score) => !Number.isFinite(score))) {
+    throw new Error("INVALID_PREDICTION");
+  }
+
+  const expectedSet = new Set(expectedLabelIds ?? []);
+  const results = LABELS.map((label, index) => ({
+    ...label,
+    score: scores[index],
+    detected: scores[index] >= label.threshold,
+    expected: expectedSet.has(label.id),
+  }));
+  const detected = results.filter((result) => result.detected);
+
+  elements.imageScores.replaceChildren(
+    ...results.map((result) => {
+      const item = document.createElement("li");
+      item.className = `image-score${result.detected ? " image-score--detected" : ""}`;
+      const comparison = expectedLabelIds
+        ? ` Esperada: ${result.expected ? "sí" : "no"}.`
+        : "";
+      item.textContent = `${capitalize(result.name)}: ${Math.round(result.score * 100)} %. Detectada: ${result.detected ? "sí" : "no"}.${comparison}`;
+      return item;
+    }),
+  );
+
+  elements.expectedLabels.hidden = !expectedLabelIds;
+  elements.expectedLabels.textContent = expectedLabelIds
+    ? `Etiquetas esperadas: ${formatSpanishList(expectedLabelIds.map(getLabelName))}.`
+    : "";
+  elements.imageResultsPanel.hidden = false;
+
+  if (detected.length === 0) {
+    const message = "No se detectaron elementos por encima de sus umbrales.";
+    elements.detection.textContent = message;
+    speak(message, { remember: true });
+    return;
+  }
+
+  elements.detection.textContent = detected
+    .map((label) => `${capitalize(label.name)}: ${Math.round(label.score * 100)} por ciento`)
+    .join(". ");
+  speak(buildDetectionMessage(detected), { remember: true });
+}
+
+function getLabelName(labelId) {
+  return LABELS.find((label) => label.id === labelId)?.name ?? labelId;
+}
+
+function clearUploadedImage() {
+  if (uploadedImageUrl) URL.revokeObjectURL(uploadedImageUrl);
+  uploadedImageUrl = "";
+  uploadedImageName = "";
 }
 
 async function openRearCamera() {
@@ -307,8 +535,8 @@ async function predictCurrentFrame(predictionSession) {
   try {
     const scores =
       activeModel.config.runtime === "onnx"
-        ? await predictWithOnnx(activeModel)
-        : await predictWithTfjs(activeModel);
+        ? await predictWithOnnx(activeModel, elements.video)
+        : await predictWithTfjs(activeModel, elements.video);
     if (!isRunning || predictionSession !== sessionId) return;
     processScores(scores);
   } catch (error) {
@@ -321,9 +549,9 @@ async function predictCurrentFrame(predictionSession) {
   }
 }
 
-function createFrameTensor(layout) {
+function createFrameTensor(sourceElement, layout) {
   return tf.tidy(() => {
-    const frame = tf.browser.fromPixels(elements.video);
+    const frame = tf.browser.fromPixels(sourceElement);
     let resized = tf.image
       .resizeBilinear(frame, [CONFIG.inputSize, CONFIG.inputSize], false)
       .toFloat();
@@ -334,9 +562,9 @@ function createFrameTensor(layout) {
   });
 }
 
-async function predictWithOnnx(loadedModel) {
+async function predictWithOnnx(loadedModel, sourceElement) {
   const { config, instance } = loadedModel;
-  const inputTensor = createFrameTensor(config.layout);
+  const inputTensor = createFrameTensor(sourceElement, config.layout);
 
   try {
     const data = await inputTensor.data();
@@ -354,9 +582,9 @@ async function predictWithOnnx(loadedModel) {
   }
 }
 
-async function predictWithTfjs(loadedModel) {
+async function predictWithTfjs(loadedModel, sourceElement) {
   const { config, instance } = loadedModel;
-  const input = createFrameTensor(config.layout);
+  const input = createFrameTensor(sourceElement, config.layout);
   const prediction = instance.predict(input);
   const output = Array.isArray(prediction) ? prediction[0] : prediction;
 
@@ -485,6 +713,11 @@ function stopNavigation(announceStop) {
   if (announceStop) speak("Navegación detenida.", { remember: false });
 }
 
+function cleanupPage() {
+  stopNavigation(false);
+  clearUploadedImage();
+}
+
 function resetDetectionState() {
   positiveStreaks = Array(LABELS.length).fill(0);
   negativeStreaks = Array(LABELS.length).fill(0);
@@ -512,7 +745,7 @@ function restoreModelSelection() {
 }
 
 function handleModelSelection() {
-  if (isRunning || isStarting) return;
+  if (isRunning || isStarting || isAnalyzingImage) return;
 
   activeModel = null;
   resetDetectionState();
@@ -536,9 +769,18 @@ function updateModelDescription() {
 function setControls(state) {
   const stopped = state === "stopped";
   elements.startButton.disabled = !stopped;
-  elements.stopButton.disabled = stopped;
+  elements.stopButton.disabled = state !== "starting" && state !== "running";
   elements.modelSelect.disabled = !stopped;
+  elements.imageUpload.disabled = !stopped;
+  elements.testImageSelect.disabled = !stopped || testImages.length === 0;
+  refreshImageControlState();
   if (!lastSpokenMessage) elements.repeatButton.disabled = true;
+}
+
+function refreshImageControlState() {
+  const available = !isRunning && !isStarting && !isAnalyzingImage;
+  elements.analyzeUploadButton.disabled = !available || !uploadedImageUrl;
+  elements.analyzeTestButton.disabled = !available || !selectedTestImage;
 }
 
 function setStatus(message) {
@@ -594,9 +836,12 @@ function friendlyErrorMessage(error) {
   ) {
     return "El modelo cargado no tiene la entrada 224 por 224 y cinco salidas esperadas.";
   }
+  if (message.includes("INVALID_PREDICTION")) {
+    return "El modelo devolvió una predicción no válida para esta imagen.";
+  }
   if (/\.onnx|model\.json|fetch|404|load/i.test(message)) {
-    return "No se pudo cargar el modelo seleccionado. Comprueba los archivos de la carpeta model o elige el modelo de respaldo.";
+    return "No se pudo cargar el modelo seleccionado. Comprueba los archivos de la carpeta model e intenta nuevamente.";
   }
 
-  return "No se pudo iniciar la navegación. Revisa la cámara, la conexión y los archivos del modelo.";
+  return "No se pudo completar el análisis. Revisa la conexión y los archivos del modelo.";
 }

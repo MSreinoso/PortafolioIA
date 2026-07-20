@@ -16,7 +16,7 @@
     ></script>
     <script
       defer
-      src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/ort.min.js"
+      src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/ort.wasm.min.js"
     ></script>
     <script defer src="./app.js"></script>
   </head>
@@ -49,11 +49,65 @@
         <label for="model-select">Seleccionar modelo</label>
         <select id="model-select" aria-describedby="model-description">
           <option value="onnx-v1" selected>ONNX — modelo actual (recomendado)</option>
-          <option value="tfjs-v1">TensorFlow.js — modelo actual (respaldo)</option>
         </select>
         <p id="model-description" class="model-description">
           Ejecuta el archivo ONNX mediante WebAssembly en este dispositivo.
         </p>
+      </section>
+
+      <section class="image-test-panel" aria-labelledby="image-test-title">
+        <h2 id="image-test-title">Probar con una imagen</h2>
+        <p class="image-test-intro">
+          Sube una foto desde tu dispositivo o elige una imagen del conjunto de prueba.
+          La imagen se analiza localmente con el modelo seleccionado.
+        </p>
+
+        <div class="image-source-grid">
+          <div class="image-source-card">
+            <h3>Subir una foto</h3>
+            <label class="file-label" for="image-upload">Seleccionar archivo de imagen</label>
+            <input
+              id="image-upload"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-describedby="upload-help"
+            />
+            <p id="upload-help" class="field-help">Formatos admitidos: JPG, PNG o WebP.</p>
+            <button id="analyze-upload-button" class="image-action-button" type="button" disabled>
+              Analizar foto subida
+            </button>
+          </div>
+
+          <div class="image-source-card">
+            <h3>Usar imagen de prueba</h3>
+            <label for="test-image-select">Imagen del conjunto de test</label>
+            <select id="test-image-select" aria-describedby="test-image-help" disabled>
+              <option value="">Cargando imágenes de prueba…</option>
+            </select>
+            <p id="test-image-help" class="field-help">
+              Se incluyen 33 imágenes de la partición de test reproducida con la semilla 42.
+            </p>
+            <button id="analyze-test-button" class="image-action-button" type="button" disabled>
+              Analizar imagen de prueba
+            </button>
+          </div>
+        </div>
+
+        <figure id="image-preview-panel" class="image-preview-panel" hidden>
+          <img id="image-preview" alt="Imagen seleccionada para el análisis" />
+          <figcaption id="image-caption"></figcaption>
+        </figure>
+
+        <section
+          id="image-results-panel"
+          class="image-results-panel"
+          aria-labelledby="image-results-title"
+          hidden
+        >
+          <h3 id="image-results-title">Resultado del análisis</h3>
+          <p id="expected-labels" class="expected-labels"></p>
+          <ul id="image-scores" class="image-scores"></ul>
+        </section>
       </section>
 
       <section id="controles" class="controls" aria-label="Controles de navegación">
@@ -97,8 +151,8 @@
       </details>
 
       <p class="privacy-note">
-        El video se procesa en este dispositivo y no se envía a un servidor. El sistema
-        describe elementos visibles, pero no calcula su dirección ni distancia.
+        El video y las fotos se procesan en este dispositivo y no se envían a un servidor.
+        El sistema describe elementos visibles, pero no calcula su dirección ni distancia.
       </p>
     </main>
 

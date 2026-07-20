@@ -25,10 +25,10 @@ comunica mediante voz para apoyar la orientación de personas con discapacidad v
 
 ## Descripción
 
-El sistema procesa continuamente la cámara trasera del teléfono y realiza clasificación
+El sistema puede procesar continuamente la cámara trasera, analizar una foto subida o
+probar las 33 imágenes de la partición de test incluida. Realiza clasificación
 **multilabel**: una misma imagen puede contener varias etiquetas simultáneamente, como
-`puerta` y `pasillo`. Cuando las detecciones son estables, la Web Speech API anuncia una
-descripción en español.
+`puerta` y `pasillo`. La Web Speech API anuncia el resultado en español.
 
 El alcance del dataset está limitado al **segundo piso del edificio Cornelio Merchán**.
 Las fotografías de letreros, puertas y pasillos son propias del entorno; las clases
@@ -37,9 +37,12 @@ genéricas `escalera` y `obstaculo` incluyen imágenes procedentes de internet.
 ## Funcionalidades
 
 - Cámara trasera mediante `navigator.mediaDevices.getUserMedia`.
-- Inferencia completamente local en el navegador; los frames no se envían a un servidor.
-- Selector entre **ONNX Runtime Web** y **TensorFlow.js**.
-- ONNX como motor predeterminado y TensorFlow.js como respaldo.
+- Carga de fotos JPG, PNG o WebP desde el dispositivo.
+- Galería integrada con 33 imágenes de test y sus etiquetas esperadas.
+- Comparación visual entre las cinco probabilidades, los thresholds y el resultado esperado.
+- Inferencia completamente local en el navegador; los frames y fotos no se envían a un servidor.
+- Selector de versiones preparado para incorporar futuros modelos evaluados.
+- ONNX Runtime Web como motor de inferencia publicado.
 - Cinco salidas sigmoid evaluadas de forma independiente.
 - Threshold óptimo específico para cada etiqueta.
 - Estabilización temporal para reducir falsos avisos entre frames.
@@ -61,20 +64,24 @@ Abre la aplicación desde un teléfono con cámara:
 4. Apunta la cámara hacia el entorno.
 5. Usa **Repetir último aviso** si necesitas escuchar nuevamente el resultado.
 
-Si ONNX Runtime no funciona en un navegador antiguo, detén la navegación, selecciona
-**TensorFlow.js — modelo actual** y vuelve a iniciar.
+También puedes usar **Probar con una imagen** sin conceder permiso de cámara:
+
+1. Sube una foto o elige una de las 33 imágenes del conjunto de test.
+2. Pulsa el botón **Analizar** de la opción correspondiente.
+3. Revisa las probabilidades, las etiquetas detectadas y, en la galería, las etiquetas
+   esperadas del CSV.
 
 ## Arquitectura
 
 ```mermaid
 flowchart TD
-    A["Cámara trasera del teléfono"] --> B["Frame RGB"]
+    A["Cámara trasera"] --> B["Imagen RGB"]
+    A2["Foto subida"] --> B
+    A3["Galería de test"] --> B
     B --> C["Redimensionamiento 224 × 224"]
     C --> D{"Modelo seleccionado"}
-    D -->|Predeterminado| E["ONNX Runtime Web · WASM"]
-    D -->|Respaldo| F["TensorFlow.js · LayersModel"]
+    D -->|Versión actual| E["ONNX Runtime Web · WASM"]
     E --> G["5 probabilidades sigmoid"]
-    F --> G
     G --> H["Threshold por etiqueta"]
     H --> I["Estabilización entre frames"]
     I --> J["Mensaje descriptivo"]
@@ -103,8 +110,9 @@ clasificación y no de detección/localización de objetos.
 
 ## Resultados del modelo
 
-El conjunto utilizado contiene **224 imágenes** y cinco etiquetas. El conjunto de test
-contiene 34 imágenes.
+La versión actual de `labels.csv` contiene **219 imágenes válidas** y cinco etiquetas. La
+galería publicada reproduce el fallback no estratificado del notebook con
+`test_size=0.15` y semilla 42, por lo que contiene **33 imágenes**.
 
 | Métrica | Threshold fijo 0.50 | Thresholds optimizados |
 |---|---:|---:|
@@ -122,16 +130,19 @@ contiene 34 imágenes.
 | `pasillo` | 0.76 | **0.85** |
 
 > [!NOTE]
-> ONNX y TensorFlow.js contienen los mismos pesos, por lo que cambiar el formato o el
-> motor no mejora por sí mismo la precisión. La mejora requiere nuevos datos,
-> reentrenamiento, evaluación y actualización de thresholds.
+> Cambiar solamente el formato del modelo no mejora la precisión. La mejora requiere
+> nuevos datos, reentrenamiento, evaluación y actualización de thresholds.
 
 ## Modelos disponibles
 
 | Opción | Archivo | Motor | Uso |
 |---|---|---|---|
 | ONNX — modelo actual | [`modelo_navegacion_multilabel.onnx`](./model/modelo_navegacion_multilabel.onnx) | ONNX Runtime Web 1.26 | Predeterminado |
-| TensorFlow.js — modelo actual | [`model.json`](./model/model.json) + `.bin` | TensorFlow.js 4.22 | Respaldo |
+
+Los artefactos `model.json` y `.bin` se conservan como referencia de conversión, pero no
+se exponen en la interfaz porque el grafo generado desde Keras 3 usa una configuración
+que TensorFlow.js Layers 4.22 no puede reconstruir. El modelo ONNX sí fue validado en el
+navegador con inferencia real.
 
 El modelo ONNX fue validado con:
 
@@ -146,8 +157,8 @@ El modelo ONNX fue validado con:
 |---|---|
 | Entrenamiento | Python, TensorFlow/Keras, MobileNetV2 |
 | Formato principal | ONNX, opset 13 |
-| Inferencia web | ONNX Runtime Web, WebAssembly |
-| Respaldo | TensorFlow.js Layers |
+| Inferencia web | ONNX Runtime Web, bundle WASM |
+| Preprocesamiento de imágenes | TensorFlow.js |
 | Cámara | MediaDevices API |
 | Voz | Web Speech API |
 | Interfaz | HTML5 semántico, CSS, JavaScript |
@@ -168,6 +179,9 @@ Proyecto_Navegacion_Multilabel/
 │   ├── group1-shard1of3.bin
 │   ├── group1-shard2of3.bin
 │   └── group1-shard3of3.bin
+├── test-images/
+│   ├── manifest.json
+│   └── test-*.webp (33 imágenes optimizadas)
 └── training/
     ├── Proyecto_Navegacion_Multilabel_Optimizado.ipynb
     └── modelo_navegacion_multilabel.h5
@@ -241,7 +255,8 @@ Los modelos seleccionables están registrados en `MODEL_REGISTRY`, al inicio de
 7. Comprueba que la entrada sea 224 × 224 × 3 y la salida contenga cinco valores.
 
 La selección queda guardada en `localStorage` y el selector se bloquea durante la
-navegación para impedir cambios de motor en medio de una inferencia.
+navegación o el análisis de una foto para impedir cambios de motor en medio de una
+inferencia. La galería de test permite comparar cada nueva versión con las mismas imágenes.
 
 ## Decisiones de accesibilidad
 
@@ -259,8 +274,9 @@ navegación para impedir cambios de motor en medio de una inferencia.
 
 ## Privacidad y seguridad
 
-- El video se procesa en memoria dentro del dispositivo.
-- La aplicación no almacena ni transmite fotografías.
+- El video y las fotos subidas se procesan en memoria dentro del dispositivo.
+- La aplicación no transmite ni conserva las fotografías que sube el usuario.
+- Las 33 imágenes de test sí forman parte del repositorio como archivos WebP optimizados.
 - No utiliza cuentas, cookies analíticas ni un servidor de inferencia.
 - Solo se guarda localmente el identificador del modelo seleccionado.
 

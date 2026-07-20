@@ -1,0 +1,612 @@
+{
+  "description": "Conjunto de test reproducido desde labels.csv con el fallback del notebook.",
+  "seed": 42,
+  "testSize": 0.15,
+  "sourceRows": 219,
+  "count": 33,
+  "totalBytes": 1909800,
+  "images": [
+    {
+      "id": "test-01",
+      "filename": "87.JPG",
+      "path": "./test-images/test-01-87.webp",
+      "labels": [
+        "letrero_pared",
+        "pasillo"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 108500
+    },
+    {
+      "id": "test-02",
+      "filename": "194.jpg",
+      "path": "./test-images/test-02-194.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta",
+        "pasillo"
+      ],
+      "originalSize": [
+        2268,
+        4032
+      ],
+      "webSize": [
+        540,
+        960
+      ],
+      "bytes": 84894
+    },
+    {
+      "id": "test-03",
+      "filename": "x.jpg",
+      "path": "./test-images/test-03-x.webp",
+      "labels": [
+        "escalera"
+      ],
+      "originalSize": [
+        640,
+        640
+      ],
+      "webSize": [
+        640,
+        640
+      ],
+      "bytes": 11930
+    },
+    {
+      "id": "test-04",
+      "filename": "y.jpg",
+      "path": "./test-images/test-04-y.webp",
+      "labels": [
+        "escalera"
+      ],
+      "originalSize": [
+        640,
+        640
+      ],
+      "webSize": [
+        640,
+        640
+      ],
+      "bytes": 12240
+    },
+    {
+      "id": "test-05",
+      "filename": "112.JPG",
+      "path": "./test-images/test-05-112.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 64496
+    },
+    {
+      "id": "test-06",
+      "filename": "203.jpg",
+      "path": "./test-images/test-06-203.webp",
+      "labels": [
+        "puerta",
+        "obstaculo"
+      ],
+      "originalSize": [
+        2268,
+        4032
+      ],
+      "webSize": [
+        540,
+        960
+      ],
+      "bytes": 44704
+    },
+    {
+      "id": "test-07",
+      "filename": "a3.png",
+      "path": "./test-images/test-07-a3.webp",
+      "labels": [
+        "obstaculo",
+        "pasillo"
+      ],
+      "originalSize": [
+        340,
+        369
+      ],
+      "webSize": [
+        340,
+        369
+      ],
+      "bytes": 12280
+    },
+    {
+      "id": "test-08",
+      "filename": "p.jpg",
+      "path": "./test-images/test-08-p.webp",
+      "labels": [
+        "escalera"
+      ],
+      "originalSize": [
+        640,
+        640
+      ],
+      "webSize": [
+        640,
+        640
+      ],
+      "bytes": 16036
+    },
+    {
+      "id": "test-09",
+      "filename": "176.jpg",
+      "path": "./test-images/test-09-176.webp",
+      "labels": [
+        "letrero_pared",
+        "pasillo"
+      ],
+      "originalSize": [
+        2268,
+        4032
+      ],
+      "webSize": [
+        540,
+        960
+      ],
+      "bytes": 66940
+    },
+    {
+      "id": "test-10",
+      "filename": "75.JPG",
+      "path": "./test-images/test-10-75.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 89770
+    },
+    {
+      "id": "test-11",
+      "filename": "198.jpg",
+      "path": "./test-images/test-11-198.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        2268,
+        4032
+      ],
+      "webSize": [
+        540,
+        960
+      ],
+      "bytes": 30612
+    },
+    {
+      "id": "test-12",
+      "filename": "126.JPG",
+      "path": "./test-images/test-12-126.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 52702
+    },
+    {
+      "id": "test-13",
+      "filename": "c6.jpg",
+      "path": "./test-images/test-13-c6.webp",
+      "labels": [
+        "escalera"
+      ],
+      "originalSize": [
+        640,
+        640
+      ],
+      "webSize": [
+        640,
+        640
+      ],
+      "bytes": 27224
+    },
+    {
+      "id": "test-14",
+      "filename": "107.JPG",
+      "path": "./test-images/test-14-107.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 56642
+    },
+    {
+      "id": "test-15",
+      "filename": "169.jpg",
+      "path": "./test-images/test-15-169.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta",
+        "obstaculo",
+        "pasillo"
+      ],
+      "originalSize": [
+        2268,
+        4032
+      ],
+      "webSize": [
+        540,
+        960
+      ],
+      "bytes": 61284
+    },
+    {
+      "id": "test-16",
+      "filename": "b.jpg",
+      "path": "./test-images/test-16-b.webp",
+      "labels": [
+        "puerta",
+        "obstaculo",
+        "pasillo"
+      ],
+      "originalSize": [
+        4000,
+        3000
+      ],
+      "webSize": [
+        960,
+        720
+      ],
+      "bytes": 55776
+    },
+    {
+      "id": "test-17",
+      "filename": "b4.jpg",
+      "path": "./test-images/test-17-b4.webp",
+      "labels": [
+        "letrero_pared",
+        "obstaculo",
+        "pasillo"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 40576
+    },
+    {
+      "id": "test-18",
+      "filename": "115.JPG",
+      "path": "./test-images/test-18-115.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 53966
+    },
+    {
+      "id": "test-19",
+      "filename": "89.JPG",
+      "path": "./test-images/test-19-89.webp",
+      "labels": [
+        "letrero_pared",
+        "pasillo"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 82244
+    },
+    {
+      "id": "test-20",
+      "filename": "168.jpg",
+      "path": "./test-images/test-20-168.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta",
+        "obstaculo",
+        "pasillo"
+      ],
+      "originalSize": [
+        2268,
+        4032
+      ],
+      "webSize": [
+        540,
+        960
+      ],
+      "bytes": 58312
+    },
+    {
+      "id": "test-21",
+      "filename": "t.jpg",
+      "path": "./test-images/test-21-t.webp",
+      "labels": [
+        "escalera",
+        "pasillo"
+      ],
+      "originalSize": [
+        640,
+        640
+      ],
+      "webSize": [
+        640,
+        640
+      ],
+      "bytes": 21146
+    },
+    {
+      "id": "test-22",
+      "filename": "196.jpg",
+      "path": "./test-images/test-22-196.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta",
+        "escalera",
+        "obstaculo",
+        "pasillo"
+      ],
+      "originalSize": [
+        2268,
+        4032
+      ],
+      "webSize": [
+        540,
+        960
+      ],
+      "bytes": 75220
+    },
+    {
+      "id": "test-23",
+      "filename": "56.JPG",
+      "path": "./test-images/test-23-56.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 47918
+    },
+    {
+      "id": "test-24",
+      "filename": "121.JPG",
+      "path": "./test-images/test-24-121.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 69022
+    },
+    {
+      "id": "test-25",
+      "filename": "v.jpg",
+      "path": "./test-images/test-25-v.webp",
+      "labels": [
+        "escalera"
+      ],
+      "originalSize": [
+        640,
+        640
+      ],
+      "webSize": [
+        640,
+        640
+      ],
+      "bytes": 10438
+    },
+    {
+      "id": "test-26",
+      "filename": "81.JPG",
+      "path": "./test-images/test-26-81.webp",
+      "labels": [
+        "letrero_pared",
+        "pasillo"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 104564
+    },
+    {
+      "id": "test-27",
+      "filename": "97.JPG",
+      "path": "./test-images/test-27-97.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta",
+        "obstaculo"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 125588
+    },
+    {
+      "id": "test-28",
+      "filename": "113.JPG",
+      "path": "./test-images/test-28-113.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 74130
+    },
+    {
+      "id": "test-29",
+      "filename": "14.JPG",
+      "path": "./test-images/test-29-14.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 55744
+    },
+    {
+      "id": "test-30",
+      "filename": "86.JPG",
+      "path": "./test-images/test-30-86.webp",
+      "labels": [
+        "letrero_pared",
+        "pasillo"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 84684
+    },
+    {
+      "id": "test-31",
+      "filename": "73.JPG",
+      "path": "./test-images/test-31-73.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta",
+        "obstaculo",
+        "pasillo"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 93482
+    },
+    {
+      "id": "test-32",
+      "filename": "15.JPG",
+      "path": "./test-images/test-32-15.webp",
+      "labels": [
+        "letrero_pared",
+        "escalera"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 57870
+    },
+    {
+      "id": "test-33",
+      "filename": "61.JPG",
+      "path": "./test-images/test-33-61.webp",
+      "labels": [
+        "letrero_pared",
+        "puerta"
+      ],
+      "originalSize": [
+        3024,
+        3024
+      ],
+      "webSize": [
+        960,
+        960
+      ],
+      "bytes": 58866
+    }
+  ]
+}
