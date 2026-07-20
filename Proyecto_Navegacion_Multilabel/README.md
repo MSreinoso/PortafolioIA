@@ -2,8 +2,8 @@
 
 Aplicación web estática que utiliza un modelo MobileNetV2 multilabel para describir
 elementos visibles del entorno en el **segundo piso** del edificio Cornelio Merchán
-(UPS, sede Cuenca). Ejecuta la inferencia en el navegador y anuncia los resultados con
-la Web Speech API.
+(UPS, sede Cuenca). Permite seleccionar ONNX Runtime Web o TensorFlow.js para ejecutar
+la inferencia en el navegador y anuncia los resultados con la Web Speech API.
 
 ## 1. Alcance real del modelo
 
@@ -25,10 +25,19 @@ Los thresholds son los valores que maximizaron el F1 individual en el conjunto d
 del proyecto. La app evalúa las cinco salidas sigmoid de manera independiente; no elige
 solamente la probabilidad mayor.
 
-## 2. Conversión del modelo
+## 2. Formatos disponibles
 
-El modelo incluido en `model/` ya fue convertido. Para repetir la conversión en otro
-entorno con `tensorflowjs_converter` disponible, el comando esencial es:
+La interfaz ofrece dos opciones que representan los mismos pesos actuales:
+
+| Opción | Archivo | Motor | Uso |
+|---|---|---|---|
+| ONNX — modelo actual | `modelo_navegacion_multilabel.onnx` | ONNX Runtime Web 1.26 | Predeterminado |
+| TensorFlow.js — modelo actual | `model.json` + `.bin` | TensorFlow.js 4.22 | Respaldo |
+
+El ONNX fue validado con opset 13, entrada `inputs` de forma
+`[batch, 224, 224, 3]` y salida `output_0` de forma `[batch, 5]`.
+
+Para repetir la conversión a TensorFlow.js en otro entorno, el comando esencial es:
 
 ```text
 tensorflowjs_converter --input_format=keras --output_format=tfjs_layers_model modelo_navegacion_multilabel.h5 model
@@ -56,6 +65,7 @@ navegacion-cornelio-merchan/
 ├── app.js
 ├── README.md
 ├── model/
+    ├── modelo_navegacion_multilabel.onnx
     ├── model.json
     ├── group1-shard1of3.bin
     ├── group1-shard2of3.bin
@@ -117,7 +127,22 @@ móviles.
 - El botón **Repetir último aviso** permite escuchar nuevamente el resultado a demanda.
 - Si aparece `obstaculo`, el aviso comienza con “Atención”.
 
-## 7. Consideraciones de seguridad
+## 7. Añadir una versión mejorada
+
+La lista de modelos está centralizada en `MODEL_REGISTRY`, al inicio de `app.js`. Para
+publicar una nueva versión:
+
+1. Copia el nuevo `.onnx` o los nuevos archivos de TensorFlow.js dentro de `model/`.
+2. Agrega una entrada a `MODEL_REGISTRY` con un identificador, nombre, motor y ruta.
+3. Agrega una opción con ese identificador al selector `#model-select` de `index.html`.
+4. Si cambió el modelo, vuelve a calcular y actualizar los thresholds de `LABELS`.
+5. Verifica que conserve entrada 224 × 224 × 3, cinco salidas y el mismo orden de
+   etiquetas; si alguna condición cambia, también debe adaptarse la aplicación.
+
+El modelo elegido se recuerda localmente en el dispositivo. El selector se bloquea
+durante la navegación para impedir que el motor cambie en medio de una inferencia.
+
+## 8. Consideraciones de seguridad
 
 Este sistema es una prueba de concepto y una ayuda descriptiva. No sustituye bastón,
 perro guía, señalización, acompañamiento humano ni procedimientos de emergencia. El

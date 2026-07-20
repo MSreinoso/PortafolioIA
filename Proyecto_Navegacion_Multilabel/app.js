@@ -32,8 +32,37 @@ const LABELS = [
   },
 ];
 
+const ONNX_RUNTIME_VERSION = "1.26.0";
+
+/*
+ * Para publicar una versión futura:
+ * 1. Copia el archivo dentro de model/.
+ * 2. Agrega otra entrada en este registro.
+ * 3. Agrega su <option> correspondiente en index.html.
+ * Las versiones deben conservar la entrada 224x224x3 y el orden de LABELS.
+ */
+const MODEL_REGISTRY = Object.freeze({
+  "onnx-v1": Object.freeze({
+    id: "onnx-v1",
+    name: "ONNX — modelo actual",
+    runtime: "onnx",
+    url: "./model/modelo_navegacion_multilabel.onnx",
+    inputName: "inputs",
+    outputName: "output_0",
+    layout: "NHWC",
+    description: "Ejecuta el archivo ONNX mediante WebAssembly en este dispositivo.",
+  }),
+  "tfjs-v1": Object.freeze({
+    id: "tfjs-v1",
+    name: "TensorFlow.js — modelo actual",
+    runtime: "tfjs",
+    url: "./model/model.json",
+    layout: "NHWC",
+    description: "Usa el modelo Keras convertido a model.json como opción de respaldo.",
+  }),
+});
+
 const CONFIG = Object.freeze({
-  modelUrl: "./model/model.json",
   inputSize: 224,
   stablePredictionsRequired: 3,
   negativePredictionsToClear: 4,
@@ -47,13 +76,16 @@ const elements = {
   startButton: document.querySelector("#start-button"),
   stopButton: document.querySelector("#stop-button"),
   repeatButton: document.querySelector("#repeat-button"),
+  modelSelect: document.querySelector("#model-select"),
+  modelDescription: document.querySelector("#model-description"),
   status: document.querySelector("#status"),
   detection: document.querySelector("#detection"),
   error: document.querySelector("#error"),
 };
 
-let model = null;
-let modelPromise = null;
+let activeModel = null;
+const modelCache = new Map();
+const modelPromises = new Map();
 let mediaStream = null;
 let animationFrameId = null;
 let sessionId = 0;
@@ -71,7 +103,11 @@ let lastSpokenMessage = "";
 elements.startButton.addEventListener("click", startNavigation);
 elements.stopButton.addEventListener("click", () => stopNavigation(true));
 elements.repeatButton.addEventListener("click", repeatLastAnnouncement);
+elements.modelSelect.addEventListener("change", handleModelSelection);
 window.addEventListener("pagehide", () => stopNavigation(false));
+
+restoreModelSelection();
+updateModelDescription();
 
 async function startNavigation() {
   if (isRunning || isStarting) return;
@@ -91,18 +127,19 @@ async function startNavigation() {
     mediaStream = await openRearCamera();
     if (thisSession !== sessionId) return;
 
-    setStatus("Cargando el modelo de inteligencia artificial…");
-    model = await loadNavigationModel();
+    const selectedConfig = getSelectedModelConfig();
+    setStatus(`Cargando ${selectedConfig.name}…`);
+    activeModel = await loadNavigationModel(selectedConfig);
     if (thisSession !== sessionId) return;
 
-    validateModel(model);
-    await warmUpModel(model);
+    validateModel(activeModel);
+    await warmUpModel(activeModel);
     if (thisSession !== sessionId) return;
 
     isStarting = false;
     isRunning = true;
     setControls("running");
-    setStatus("Navegación activa. Analizando el entorno.");
+    setStatus(`Navegación activa con ${activeModel.config.name}.`);
     speak("Navegación activa en el segundo piso. Apunta la cámara hacia el frente.", {
       remember: false,
     });
@@ -128,6 +165,9 @@ function ensureBrowserSupport() {
   if (!window.tf) {
     throw new Error("TFJS_UNAVAILABLE");
   }
+  if (getSelectedModelConfig().runtime === "onnx" && !window.ort) {
+    throw new Error("ONNX_RUNTIME_UNAVAILABLE");
+  }
   if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
     throw new Error("SPEECH_UNSUPPORTED");
   }
@@ -148,25 +188,57 @@ async function openRearCamera() {
   return stream;
 }
 
-async function loadNavigationModel() {
-  if (model) return model;
-
-  if (!modelPromise) {
-    modelPromise = (async () => {
-      await tf.ready();
-      return tf.loadLayersModel(CONFIG.modelUrl);
-    })().catch((error) => {
-      modelPromise = null;
-      throw error;
-    });
+async function loadNavigationModel(config) {
+  if (modelCache.has(config.id)) {
+    return { config, instance: modelCache.get(config.id) };
   }
 
-  return modelPromise;
+  if (!modelPromises.has(config.id)) {
+    const loading = (async () => {
+      let instance;
+      if (config.runtime === "onnx") {
+        ort.env.wasm.wasmPaths =
+          `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_RUNTIME_VERSION}/dist/`;
+        ort.env.wasm.numThreads = window.crossOriginIsolated
+          ? Math.min(navigator.hardwareConcurrency || 1, 4)
+          : 1;
+        instance = await ort.InferenceSession.create(config.url, {
+          executionProviders: ["wasm"],
+          graphOptimizationLevel: "all",
+        });
+      } else {
+        await tf.ready();
+        instance = await tf.loadLayersModel(config.url);
+      }
+
+      modelCache.set(config.id, instance);
+      return instance;
+    })().catch((error) => {
+      modelPromises.delete(config.id);
+      throw error;
+    });
+    modelPromises.set(config.id, loading);
+  }
+
+  const instance = await modelPromises.get(config.id);
+  return { config, instance };
 }
 
 function validateModel(loadedModel) {
-  const inputShape = loadedModel.inputs?.[0]?.shape;
-  const outputShape = loadedModel.outputs?.[0]?.shape;
+  const { config, instance } = loadedModel;
+
+  if (config.runtime === "onnx") {
+    if (!instance.inputNames.includes(config.inputName)) {
+      throw new Error(`INVALID_ONNX_INPUT:${instance.inputNames.join(",")}`);
+    }
+    if (!instance.outputNames.includes(config.outputName)) {
+      throw new Error(`INVALID_ONNX_OUTPUT:${instance.outputNames.join(",")}`);
+    }
+    return;
+  }
+
+  const inputShape = instance.inputs?.[0]?.shape;
+  const outputShape = instance.outputs?.[0]?.shape;
   const expectedInput = [null, CONFIG.inputSize, CONFIG.inputSize, 3];
 
   if (!sameShape(inputShape, expectedInput)) {
@@ -187,9 +259,25 @@ function sameShape(actual, expected) {
 }
 
 async function warmUpModel(loadedModel) {
+  const { config, instance } = loadedModel;
+
+  if (config.runtime === "onnx") {
+    const input = new ort.Tensor(
+      "float32",
+      new Float32Array(CONFIG.inputSize * CONFIG.inputSize * 3),
+      [1, CONFIG.inputSize, CONFIG.inputSize, 3],
+    );
+    const results = await instance.run({ [config.inputName]: input });
+    const output = results[config.outputName];
+    if (!output || output.data.length !== LABELS.length) {
+      throw new Error(`INVALID_OUTPUT_SHAPE:${output?.dims}`);
+    }
+    return;
+  }
+
   const output = tf.tidy(() => {
     const input = tf.zeros([1, CONFIG.inputSize, CONFIG.inputSize, 3]);
-    const prediction = loadedModel.predict(input);
+    const prediction = instance.predict(input);
     return Array.isArray(prediction) ? prediction[0] : prediction;
   });
 
@@ -215,25 +303,12 @@ function runInferenceLoop(timestamp) {
 
 async function predictCurrentFrame(predictionSession) {
   isPredicting = true;
-  let output = null;
 
   try {
-    output = tf.tidy(() => {
-      const frame = tf.browser.fromPixels(elements.video);
-      const resized = tf.image.resizeBilinear(
-        frame,
-        [CONFIG.inputSize, CONFIG.inputSize],
-        false,
-      );
-
-      // El modelo .h5 ya incluye Rescaling(1/127.5, offset=-1).
-      // Por ello se entregan píxeles float en 0–255, sin normalizar otra vez aquí.
-      const input = resized.toFloat().expandDims(0);
-      const prediction = model.predict(input);
-      return Array.isArray(prediction) ? prediction[0] : prediction;
-    });
-
-    const scores = Array.from(await output.data());
+    const scores =
+      activeModel.config.runtime === "onnx"
+        ? await predictWithOnnx(activeModel)
+        : await predictWithTfjs(activeModel);
     if (!isRunning || predictionSession !== sessionId) return;
     processScores(scores);
   } catch (error) {
@@ -242,8 +317,54 @@ async function predictCurrentFrame(predictionSession) {
       showError("Ocurrió un error al analizar la imagen. Intenta reiniciar la navegación.");
     }
   } finally {
-    output?.dispose();
     if (predictionSession === sessionId) isPredicting = false;
+  }
+}
+
+function createFrameTensor(layout) {
+  return tf.tidy(() => {
+    const frame = tf.browser.fromPixels(elements.video);
+    let resized = tf.image
+      .resizeBilinear(frame, [CONFIG.inputSize, CONFIG.inputSize], false)
+      .toFloat();
+
+    // Ambos modelos incluyen Rescaling(1/127.5, offset=-1). Se conservan 0–255.
+    if (layout === "NCHW") resized = resized.transpose([2, 0, 1]);
+    return resized.expandDims(0);
+  });
+}
+
+async function predictWithOnnx(loadedModel) {
+  const { config, instance } = loadedModel;
+  const inputTensor = createFrameTensor(config.layout);
+
+  try {
+    const data = await inputTensor.data();
+    const dimensions =
+      config.layout === "NCHW"
+        ? [1, 3, CONFIG.inputSize, CONFIG.inputSize]
+        : [1, CONFIG.inputSize, CONFIG.inputSize, 3];
+    const input = new ort.Tensor("float32", data, dimensions);
+    const results = await instance.run({ [config.inputName]: input });
+    const output = results[config.outputName];
+    if (!output) throw new Error("INVALID_ONNX_OUTPUT");
+    return Array.from(output.data);
+  } finally {
+    inputTensor.dispose();
+  }
+}
+
+async function predictWithTfjs(loadedModel) {
+  const { config, instance } = loadedModel;
+  const input = createFrameTensor(config.layout);
+  const prediction = instance.predict(input);
+  const output = Array.isArray(prediction) ? prediction[0] : prediction;
+
+  try {
+    return Array.from(await output.data());
+  } finally {
+    input.dispose();
+    tf.dispose(prediction);
   }
 }
 
@@ -373,10 +494,50 @@ function resetDetectionState() {
   lastInferenceAt = 0;
 }
 
+function getSelectedModelConfig() {
+  const config = MODEL_REGISTRY[elements.modelSelect.value];
+  if (!config) throw new Error("MODEL_NOT_CONFIGURED");
+  return config;
+}
+
+function restoreModelSelection() {
+  try {
+    const savedModelId = window.localStorage.getItem("navigation-model-id");
+    if (savedModelId && MODEL_REGISTRY[savedModelId]) {
+      elements.modelSelect.value = savedModelId;
+    }
+  } catch {
+    // El almacenamiento local es una mejora opcional; la selección ONNX sigue por defecto.
+  }
+}
+
+function handleModelSelection() {
+  if (isRunning || isStarting) return;
+
+  activeModel = null;
+  resetDetectionState();
+  clearError();
+  updateModelDescription();
+
+  const config = getSelectedModelConfig();
+  setStatus(`Modelo seleccionado: ${config.name}.`);
+  try {
+    window.localStorage.setItem("navigation-model-id", config.id);
+  } catch {
+    // La aplicación funciona aunque el navegador bloquee el almacenamiento local.
+  }
+}
+
+function updateModelDescription() {
+  const config = getSelectedModelConfig();
+  elements.modelDescription.textContent = config.description;
+}
+
 function setControls(state) {
   const stopped = state === "stopped";
   elements.startButton.disabled = !stopped;
   elements.stopButton.disabled = stopped;
+  elements.modelSelect.disabled = !stopped;
   if (!lastSpokenMessage) elements.repeatButton.disabled = true;
 }
 
@@ -419,11 +580,22 @@ function friendlyErrorMessage(error) {
   if (message.includes("TFJS_UNAVAILABLE")) {
     return "No se pudo cargar TensorFlow.js. Comprueba la conexión a internet e intenta nuevamente.";
   }
-  if (message.includes("INVALID_INPUT_SHAPE") || message.includes("INVALID_OUTPUT_SHAPE")) {
+  if (message.includes("ONNX_RUNTIME_UNAVAILABLE")) {
+    return "No se pudo cargar ONNX Runtime Web. Comprueba la conexión o selecciona TensorFlow.js.";
+  }
+  if (message.includes("MODEL_NOT_CONFIGURED")) {
+    return "El modelo seleccionado no está configurado correctamente.";
+  }
+  if (
+    message.includes("INVALID_INPUT_SHAPE") ||
+    message.includes("INVALID_OUTPUT_SHAPE") ||
+    message.includes("INVALID_ONNX_INPUT") ||
+    message.includes("INVALID_ONNX_OUTPUT")
+  ) {
     return "El modelo cargado no tiene la entrada 224 por 224 y cinco salidas esperadas.";
   }
-  if (/model\.json|fetch|404|load/i.test(message)) {
-    return "No se pudo cargar el modelo. Comprueba que model.json y todos los archivos .bin estén dentro de la carpeta model.";
+  if (/\.onnx|model\.json|fetch|404|load/i.test(message)) {
+    return "No se pudo cargar el modelo seleccionado. Comprueba los archivos de la carpeta model o elige el modelo de respaldo.";
   }
 
   return "No se pudo iniciar la navegación. Revisa la cámara, la conexión y los archivos del modelo.";

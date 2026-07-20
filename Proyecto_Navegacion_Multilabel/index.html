@@ -14,6 +14,10 @@
       defer
       src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"
     ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/ort.min.js"
+    ></script>
     <script defer src="./app.js"></script>
   </head>
 
@@ -38,6 +42,18 @@
         </p>
         <p id="detection" class="detection-text">No se han detectado elementos.</p>
         <p id="error" class="error-text" role="alert" hidden></p>
+      </section>
+
+      <section class="model-panel" aria-labelledby="model-title">
+        <h2 id="model-title">Modelo de inteligencia artificial</h2>
+        <label for="model-select">Seleccionar modelo</label>
+        <select id="model-select" aria-describedby="model-description">
+          <option value="onnx-v1" selected>ONNX — modelo actual (recomendado)</option>
+          <option value="tfjs-v1">TensorFlow.js — modelo actual (respaldo)</option>
+        </select>
+        <p id="model-description" class="model-description">
+          Ejecuta el archivo ONNX mediante WebAssembly en este dispositivo.
+        </p>
       </section>
 
       <section id="controles" class="controls" aria-label="Controles de navegación">
